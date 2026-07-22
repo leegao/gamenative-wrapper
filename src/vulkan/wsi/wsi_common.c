@@ -79,6 +79,7 @@ wsi_device_init(struct wsi_device *wsi,
                 const struct driOptionCache *dri_options,
                 const struct wsi_device_options *device_options)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    const char *present_mode;
    UNUSED VkResult result;
 
@@ -413,6 +414,7 @@ get_blit_type(const struct wsi_device *wsi,
               const struct wsi_base_image_params *params,
               VkDevice device)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    switch (params->image_type) {
    case WSI_IMAGE_TYPE_CPU: {
       const struct wsi_cpu_image_params *cpu_params =
@@ -490,6 +492,7 @@ wsi_swapchain_init(const struct wsi_device *wsi,
                    const struct wsi_base_image_params *image_params,
                    const VkAllocationCallbacks *pAllocator)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    VK_FROM_HANDLE(vk_device, device, _device);
    VkResult result;
 
@@ -557,6 +560,7 @@ wsi_swapchain_is_present_mode_supported(struct wsi_device *wsi,
                                         const VkSwapchainCreateInfoKHR *pCreateInfo,
                                         VkPresentModeKHR mode)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
       ICD_FROM_HANDLE(VkIcdSurfaceBase, surface, pCreateInfo->surface);
       struct wsi_interface *iface = wsi->wsi[surface->platform];
       VkPresentModeKHR *present_modes;
@@ -593,6 +597,7 @@ VkPresentModeKHR
 wsi_swapchain_get_present_mode(struct wsi_device *wsi,
                                const VkSwapchainCreateInfoKHR *pCreateInfo)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    if (wsi->override_present_mode == VK_PRESENT_MODE_MAX_ENUM_KHR)
       return pCreateInfo->presentMode;
 
@@ -608,6 +613,7 @@ wsi_swapchain_get_present_mode(struct wsi_device *wsi,
 void
 wsi_swapchain_finish(struct wsi_swapchain *chain)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    wsi_destroy_image_info(chain, &chain->image_info);
 
    if (chain->fences) {
@@ -646,6 +652,7 @@ wsi_configure_image(const struct wsi_swapchain *chain,
                     VkExternalMemoryHandleTypeFlags handle_types,
                     struct wsi_image_info *info)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    memset(info, 0, sizeof(*info));
    uint32_t queue_family_count = 1;
 
@@ -784,6 +791,7 @@ wsi_create_image(const struct wsi_swapchain *chain,
                  const struct wsi_image_info *info,
                  struct wsi_image *image)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    const struct wsi_device *wsi = chain->wsi;
    VkResult result;
 
@@ -803,8 +811,11 @@ wsi_create_image(const struct wsi_swapchain *chain,
       return VK_ERROR_OUT_OF_HOST_MEMORY;
    }
 #endif
+   WRAPPER_LOG(info, "Calling wsi->CreateImage: flags=%d, format=%d", info->create.flags, info->create.format);
    result = wsi->CreateImage(chain->device, &info->create,
                              &chain->alloc, &image->image);
+   
+   WRAPPER_LOG(info, "wsi->CreateImage: result=%d, image=%p", result, image->image);
                   
    if (result != VK_SUCCESS) {
       WRAPPER_LOG(error, "Failed to create image, res %d", result);
@@ -1067,6 +1078,7 @@ wsi_CreateSwapchainKHR(VkDevice _device,
                        const VkAllocationCallbacks *pAllocator,
                        VkSwapchainKHR *pSwapchain)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    MESA_TRACE_FUNC();
    VK_FROM_HANDLE(vk_device, device, _device);
    ICD_FROM_HANDLE(VkIcdSurfaceBase, surface, pCreateInfo->surface);
@@ -1084,6 +1096,7 @@ wsi_CreateSwapchainKHR(VkDevice _device,
 
    VkSwapchainCreateInfoKHR info = *pCreateInfo;
 
+   WRAPPER_LOG(info, "wsi_CreateSwapchainKHR called for swapchain format: %d", info.imageFormat);
    if (wsi_device->emulate_bgra8) {
       if (info.imageFormat == VK_FORMAT_B8G8R8A8_UNORM) {
          WRAPPER_LOG(info, "wsi_CreateSwapchainKHR: Emulating B8G8R8A8_UNORM framebuffers on Mali");
@@ -1216,6 +1229,7 @@ wsi_common_get_images(VkSwapchainKHR _swapchain,
                       uint32_t *pSwapchainImageCount,
                       VkImage *pSwapchainImages)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    VK_FROM_HANDLE(wsi_swapchain, swapchain, _swapchain);
    VK_OUTARRAY_MAKE_TYPED(VkImage, images, pSwapchainImages, pSwapchainImageCount);
 
@@ -1231,6 +1245,7 @@ wsi_common_get_images(VkSwapchainKHR _swapchain,
 VkImage
 wsi_common_get_image(VkSwapchainKHR _swapchain, uint32_t index)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    VK_FROM_HANDLE(wsi_swapchain, swapchain, _swapchain);
    assert(index < swapchain->image_count);
    return swapchain->get_wsi_image(swapchain, index)->image;
@@ -1812,6 +1827,7 @@ wsi_common_create_swapchain_image(const struct wsi_device *wsi,
    }
 #endif
 
+   WRAPPER_LOG(info, "wsi_common_create_swapchain_image wsi->CreateImage: flags=0x%x", chain->image_info.create.flags);
    return wsi->CreateImage(chain->device, &chain->image_info.create,
                            &chain->alloc, pImage);
 }

@@ -367,7 +367,7 @@ wrapper_CreateInstance(const VkInstanceCreateInfo *pCreateInfo,
                {WRAPPER_VALIDATION_LAYER, "validate_best_practices", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &settings_validate_best_practices},
             };
             static VkLayerSettingsCreateInfoEXT layer_settings_info = {
-               VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT, NULL, 2, layer_settings,
+               VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT, NULL, 0, layer_settings,
             };
             layer_settings_info.pNext = wrapper_create_info.pNext;
             wrapper_create_info.pNext = &layer_settings_info;

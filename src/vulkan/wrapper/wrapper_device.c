@@ -1012,6 +1012,8 @@ wrapper_CreateImage(VkDevice _device,
 					const VkAllocationCallbacks *pAllocator,
 					VkImage *pImage)
 {
+   WRAPPER_LOG(info, "wrapper_CreateImage: flags=0x%x, format=%d", pCreateInfo->flags, pCreateInfo->format);
+   
    VK_FROM_HANDLE(wrapper_device, device, _device);
    VkResult res;
    VkImageCreateInfo create_info;
@@ -1098,6 +1100,8 @@ wrapper_CreateImage(VkDevice _device,
 
    simple_mtx_unlock(&device->resource_mutex);
 
+   WRAPPER_LOG(info, "wrapper_CreateImage: flags=0x%x, format=%d: returned %p", pCreateInfo->flags, pCreateInfo->format, *pImage);
+
    return VK_SUCCESS;
 }
 
@@ -1141,6 +1145,11 @@ wrapper_CreateImageView(VkDevice _device,
    VkImageViewCreateInfo create_info = *pCreateInfo;
    VkResult result;
 
+   struct wrapper_image *img = get_wrapper_image_from_handle(device, create_info.image); // lock not held
+   if (img && (img->is_wsi_image || img->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "Creating image view for wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d, format=%d", img->dispatch_handle, img->is_wsi_image, img->is_emulated_bgra8, create_info.format);
+   }
+   
    if (is_emulated_bcn(device->physical, pCreateInfo->format)) {
       create_info.format = get_format_for_bcn(pCreateInfo->format);
    }
@@ -2691,6 +2700,10 @@ wrapper_CmdCopyBufferToImage(VkCommandBuffer commandBuffer,
    struct wrapper_buffer *wb = get_wrapper_buffer_from_handle(device, srcBuffer);
    VkFormat format = wi ? wi->info.format : VK_FORMAT_UNDEFINED;
 
+   if (wi && (wi->is_wsi_image || wi->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdCopyBufferToImage for wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", wi->dispatch_handle, wi->is_wsi_image, wi->is_emulated_bgra8);
+   }
+   
    if (regionCount)
       wrapper_diag_log_copy(device, dstImage, wi, wb,
          pRegions[0].imageExtent.width, pRegions[0].imageExtent.height,
@@ -2716,6 +2729,10 @@ wrapper_CmdCopyBufferToImage2(VkCommandBuffer commandBuffer,
    struct wrapper_image *wi = get_wrapper_image_from_handle(device, pInfo->dstImage);
    struct wrapper_buffer *wb = get_wrapper_buffer_from_handle(device, pInfo->srcBuffer);
    VkFormat format = wi ? wi->info.format : VK_FORMAT_UNDEFINED;
+
+   if (wi && (wi->is_wsi_image || wi->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdCopyBufferToImage2 for wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", wi->dispatch_handle, wi->is_wsi_image, wi->is_emulated_bgra8);
+   }
 
    if (pInfo->regionCount)
       wrapper_diag_log_copy(device, pInfo->dstImage, wi, wb,
@@ -2755,11 +2772,16 @@ wrapper_CmdBlitImage(
 {
    VK_FROM_HANDLE(wrapper_command_buffer, wcb, commandBuffer);
    struct wrapper_device *device = wcb->device;
+   struct wrapper_image *src_img = get_wrapper_image_from_handle(device, srcImage);
    struct wrapper_image *dst_img = get_wrapper_image_from_handle(device, dstImage);
    const VkImageBlit *regions = (const VkImageBlit *)pRegions;
 
-   if (dst_img && dst_img->is_emulated_bgra8) {
-      WRAPPER_LOG(error, "vkCmdBlitImage with is_emulated_bgra8 image");
+   if (src_img && (src_img->is_wsi_image || src_img->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdBlitImage for src wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", src_img->dispatch_handle, src_img->is_wsi_image, src_img->is_emulated_bgra8);
+   }
+   
+   if (dst_img && (dst_img->is_wsi_image || dst_img->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdBlitImage for dst wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", dst_img->dispatch_handle, dst_img->is_wsi_image, dst_img->is_emulated_bgra8);
    }
 
    device->dispatch_table.CmdBlitImage(
@@ -2776,14 +2798,70 @@ wrapper_CmdBlitImage2(
 {
    VK_FROM_HANDLE(wrapper_command_buffer, wcb, commandBuffer);
    struct wrapper_device *device = wcb->device;
+   struct wrapper_image *src_img = get_wrapper_image_from_handle(device, pBlitImageInfo->srcImage);
    struct wrapper_image *dst_img = get_wrapper_image_from_handle(device, pBlitImageInfo->dstImage);
 
-   if (dst_img && dst_img->is_emulated_bgra8) {
-      WRAPPER_LOG(error, "vkCmdBlitImage2 with is_emulated_bgra8 image");
+   if (src_img && (src_img->is_wsi_image || src_img->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdBlitImage for src wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", src_img->dispatch_handle, src_img->is_wsi_image, src_img->is_emulated_bgra8);
+   }
+   
+   if (dst_img && (dst_img->is_wsi_image || dst_img->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdBlitImage for dst wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", dst_img->dispatch_handle, dst_img->is_wsi_image, dst_img->is_emulated_bgra8);
    }
 
    if (device->dispatch_table.CmdBlitImage2) {
       device->dispatch_table.CmdBlitImage2(wcb->dispatch_handle, pBlitImageInfo);
+   }
+}
+
+VKAPI_ATTR void VKAPI_CALL 
+wrapper_CmdCopyImage(
+    VkCommandBuffer commandBuffer,
+    VkImage srcImage, VkImageLayout srcImageLayout,
+    VkImage dstImage, VkImageLayout dstImageLayout,
+    uint32_t regionCount, const VkImageCopy* pRegions)
+{
+   VK_FROM_HANDLE(wrapper_command_buffer, wcb, commandBuffer);
+   struct wrapper_device *device = wcb->device;
+   struct wrapper_image *src_img = get_wrapper_image_from_handle(device, srcImage);
+   struct wrapper_image *dst_img = get_wrapper_image_from_handle(device, dstImage);
+   const VkImageCopy *regions = (const VkImageCopy *)pRegions;
+
+   if (src_img && (src_img->is_wsi_image || src_img->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdCopyImage for src wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", src_img->dispatch_handle, src_img->is_wsi_image, src_img->is_emulated_bgra8);
+   }
+   
+   if (dst_img && (dst_img->is_wsi_image || dst_img->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdCopyImage for dst wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", dst_img->dispatch_handle, dst_img->is_wsi_image, dst_img->is_emulated_bgra8);
+   }
+
+   device->dispatch_table.CmdCopyImage(
+      wcb->dispatch_handle,
+      srcImage, srcImageLayout,
+      dstImage, dstImageLayout,
+      regionCount, regions);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+wrapper_CmdCopyImage2(
+    VkCommandBuffer commandBuffer,
+    const VkCopyImageInfo2 *pCopyImageInfo)
+{
+   VK_FROM_HANDLE(wrapper_command_buffer, wcb, commandBuffer);
+   struct wrapper_device *device = wcb->device;
+   struct wrapper_image *src_img = get_wrapper_image_from_handle(device, pCopyImageInfo->srcImage);
+   struct wrapper_image *dst_img = get_wrapper_image_from_handle(device, pCopyImageInfo->dstImage);
+
+   if (src_img && (src_img->is_wsi_image || src_img->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdCopyImage2 for src wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", src_img->dispatch_handle, src_img->is_wsi_image, src_img->is_emulated_bgra8);
+   }
+   
+   if (dst_img && (dst_img->is_wsi_image || dst_img->is_emulated_bgra8)) {
+      WRAPPER_LOG(info, "wrapper_CmdCopyImage2 for dst wsi image: %p, is_wsi_image=%d, is_emulated_bgra8=%d", dst_img->dispatch_handle, dst_img->is_wsi_image, dst_img->is_emulated_bgra8);
+   }
+
+   if (device->dispatch_table.CmdCopyImage2) {
+      device->dispatch_table.CmdCopyImage2(wcb->dispatch_handle, pCopyImageInfo);
    }
 }
 

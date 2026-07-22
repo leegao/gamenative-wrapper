@@ -611,6 +611,8 @@ wrapper_AllocateMemory(VkDevice _device,
       }
 
       if (result != VK_SUCCESS && VALID_HANDLE(VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID)) {
+         
+         WRAPPER_LOG(info, "Calling wrapper_allocate_memory_ahardware_buffer");
          wrapper_device_memory_reset(mem);
          result = wrapper_allocate_memory_ahardware_buffer(device,
             &memory_allocate_info, pAllocator, &mem->dispatch_handle, &mem->ahardware_buffer);
@@ -727,8 +729,10 @@ wrapper_MapMemory2KHR(VkDevice _device,
                         idx, handle->data[idx], errno);
             continue;
          }
-         if ((size_t)size >= mem->alloc_size)
+         if ((size_t)size >= mem->alloc_size) {
+            WRAPPER_LOG(info, "Found an acceptable handle at (idx=%d, fd=%d)", idx, handle->data[idx]);
             break;
+         }
       }
       if (idx >= handle->numFds) {
          WRAPPER_LOG(error, "No usable AHB fd with size >= alloc_size %zu", mem->alloc_size);
@@ -738,6 +742,7 @@ wrapper_MapMemory2KHR(VkDevice _device,
       fd = handle->data[idx];
    }
    else {
+      WRAPPER_LOG(info, "Found a non-AHB handle at (fd=%d)", mem->fd);
       fd = mem->fd;
    }
 
@@ -753,9 +758,9 @@ wrapper_MapMemory2KHR(VkDevice _device,
          }
          mem->map_size = res;
       }
-   }
-   else
+   } else {
       mem->map_size = pMemoryMapInfo->size;
+   }
 
    WRAPPER_LOG(info, "Mapping memory %p, address %p size %zu\n", pMemoryMapInfo->memory, placed_info->pPlacedAddress, mem->map_size);
 
@@ -777,6 +782,7 @@ wrapper_MapMemory2KHR(VkDevice _device,
       return VK_SUCCESS;
    fail:
       simple_mtx_unlock(&device->resource_mutex);
+      WRAPPER_LOG(info, "Failing wrapper_MapMemory2KHR with %d", result);
       return result;
 }
 

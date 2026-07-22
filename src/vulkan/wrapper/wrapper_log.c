@@ -185,5 +185,7 @@ wrapper_debug_utils_messenger(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeve
       fflush(vvl_log_file);
    }
 
+   write_to_logfile("[%s] Code %i : %s", "info", messageIdName, messageIdNumber, message);
+
    return 0;
 }

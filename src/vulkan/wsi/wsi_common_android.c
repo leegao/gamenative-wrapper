@@ -13,6 +13,7 @@ static enum wsi_swapchain_blit_type
 wsi_get_ahardware_buffer_blit_type(const struct wsi_device *wsi,
                             VkDevice device)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    AHardwareBuffer *ahardware_buffer;
    VkResult result;
    uint32_t probe_format = wsi->emulate_bgra8
@@ -98,6 +99,7 @@ wsi_get_android_blit_type(const struct wsi_device *wsi,
                       const struct wsi_base_image_params *params,
                                    VkDevice device)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    int wrapper_blit = getenv("WRAPPER_BLIT") && atoi(getenv("WRAPPER_BLIT"));
    if (wsi->needs_blit || wrapper_blit)
       return WSI_SWAPCHAIN_IMAGE_BLIT;
@@ -110,6 +112,7 @@ wsi_create_ahardware_buffer_image_mem(const struct wsi_swapchain *chain,
                                       const struct wsi_image_info *info,
                                       struct wsi_image *image)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    const struct wsi_device *wsi = chain->wsi;
    VkImage old_image = image->image;
    VkResult result;
@@ -148,6 +151,7 @@ wsi_create_ahardware_buffer_image_mem(const struct wsi_swapchain *chain,
       new_image_create_info.pNext = &emulated_bgra8_ext;
    }
 
+   WRAPPER_LOG(info, "%s: wsi->CreateImage: flags=0x%x", __FUNCTION__, new_image_create_info.flags);
    result = wsi->CreateImage(chain->device,
                              &new_image_create_info,
                              &chain->alloc, &image->image);
@@ -194,6 +198,7 @@ wsi_create_ahardware_buffer_blit_context(const struct wsi_swapchain *chain,
                                          const struct wsi_image_info *info,
                                          struct wsi_image *image)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    assert(chain->blit.type == WSI_SWAPCHAIN_IMAGE_BLIT);
    const struct wsi_device *wsi = chain->wsi;
    VkResult result;
@@ -244,6 +249,8 @@ wsi_create_ahardware_buffer_blit_context(const struct wsi_swapchain *chain,
          info->create.pQueueFamilyIndices,
       .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
    };
+   
+   WRAPPER_LOG(info, "%s: wsi->CreateImage: flags=0x%x", __FUNCTION__, image_info.flags);
    result = wsi->CreateImage(chain->device, &image_info,
                              &chain->alloc, &image->blit.image);
    if (result != VK_SUCCESS) {
@@ -337,6 +344,7 @@ wsi_configure_ahardware_buffer_image(const struct wsi_swapchain *chain,
                                      const bool blit,
                                      struct wsi_image_info *info)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    VkResult result;
 
    VkExternalMemoryHandleTypeFlags handle_type =
@@ -390,6 +398,7 @@ wsi_configure_android_image(
    const struct wsi_base_image_params *params,
    struct wsi_image_info *info)
 {
+   WRAPPER_LOG(info, "[wsi] Calling %s", __FUNCTION__);
    assert(params->image_type == WSI_IMAGE_TYPE_ANDROID);
    assert(chain->blit.type == WSI_SWAPCHAIN_NO_BLIT ||
           chain->blit.type == WSI_SWAPCHAIN_IMAGE_BLIT);
